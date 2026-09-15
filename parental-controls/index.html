@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parental Controls</title>
+<meta name="description" content="Self-hosted screen time for a kid's Mac: schedules, daily budgets, and chores-before-screens, enforced through Apple's own MDM.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #15171c;
+    --panel: #1e2129;
+    --panel-2: #262a34;
+    --line: #2f3440;
+    --text: #e9ecf2;
+    --muted: #9aa3b2;
+    --accent: #6f8bff;
+    --green: #5fd49a;
+    --amber: #f0b357;
+    --red: #ff8fa5;
+    --radius: 14px;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; height: auto; display: block; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel-2); padding: .1em .4em; border-radius: 5px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 88px 0; border-top: 1px solid var(--line); }
+  .eyebrow { font: 600 12px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h1, h2, h3 { line-height: 1.15; margin: 0; letter-spacing: -.02em; }
+  h2 { font-size: clamp(28px, 4vw, 38px); margin-bottom: 16px; }
+  h3 { font-size: 18px; margin-bottom: 6px; }
+  .lede { color: var(--muted); font-size: 18px; max-width: 64ch; margin: 0; }
+
+  /* nav */
+  nav.top { position: sticky; top: 0; z-index: 10; background: rgba(21,23,28,.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 58px; }
+  nav.top .brand { font-weight: 700; color: var(--text); }
+  nav.top ul { display: flex; gap: 22px; list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  nav.top ul a { color: var(--muted); }
+  @media (max-width: 640px) { nav.top ul { display: none; } }
+
+  /* hero */
+  .hero { padding: 96px 0 72px; border-top: 0; }
+  .hero h1 { font-size: clamp(38px, 6.4vw, 66px); max-width: 15ch; }
+  .hero h1 span { color: var(--accent); }
+  .hero .lede { margin-top: 22px; font-size: 20px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 44px; }
+  .pill { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+  .shot { border-radius: 12px; filter: drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
+  .hero .shot { margin: 0 auto; }
+
+  /* chain diagram */
+  .chain { display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; margin-top: 44px; }
+  .node { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; position: relative; }
+  .node .k { font: 500 11px/1 var(--mono); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .node h3 { margin: 10px 0 6px; font-size: 16px; }
+  .node p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .node.brain { border-color: var(--accent); background: linear-gradient(180deg, rgba(111,139,255,.12), var(--panel)); }
+  .node.device { border-color: rgba(95,212,154,.5); }
+  .chain .node + .node::before {
+    content: ""; position: absolute; left: -22px; top: 50%; width: 22px; height: 2px; background: var(--line);
+  }
+  .chain .node + .node::after {
+    content: ""; position: absolute; left: -7px; top: calc(50% - 4px);
+    border: 5px solid transparent; border-left-color: var(--muted);
+  }
+  @media (max-width: 860px) {
+    .chain { grid-template-columns: 1fr; }
+    .chain .node + .node::before { left: 28px; top: -22px; width: 2px; height: 22px; }
+    .chain .node + .node::after { left: 24px; top: -8px; border-left-color: transparent; border-top-color: var(--muted); }
+  }
+  .caption { color: var(--muted); font-size: 14px; margin-top: 18px; }
+
+  /* day states */
+  .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+  @media (max-width: 760px) { .states { grid-template-columns: 1fr; } }
+  .state { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .badge { display: inline-block; font: 600 12px/1 var(--sans); letter-spacing: .04em; padding: 6px 10px; border-radius: 999px; margin-bottom: 14px; }
+  .b-red { color: var(--red); background: rgba(255,143,165,.12); }
+  .b-amber { color: var(--amber); background: rgba(240,179,87,.12); }
+  .b-green { color: var(--green); background: rgba(95,212,154,.12); }
+  .state p { margin: 0; color: var(--muted); font-size: 15px; }
+  .rule { margin-top: 28px; background: var(--panel-2); border-radius: var(--radius); padding: 18px 22px; font-family: var(--mono); font-size: 14px; color: var(--text); overflow-x: auto; white-space: nowrap; }
+  .rule .op { color: var(--accent); }
+
+  /* feature rows */
+  .feature { display: grid; grid-template-columns: 1fr 1.35fr; gap: 48px; align-items: center; padding: 44px 0; }
+  .feature + .feature { border-top: 1px dashed var(--line); }
+  .feature.flip { grid-template-columns: 1.35fr 1fr; }
+  .feature.flip .copy { order: 2; }
+  .feature .copy h3 { font-size: 24px; margin-bottom: 10px; }
+  .feature .copy p { color: var(--muted); margin: 0 0 12px; }
+  .feature .copy ul { color: var(--muted); padding-left: 18px; margin: 0; }
+  .feature .copy li { margin: 4px 0; }
+  @media (max-width: 860px) {
+    .feature, .feature.flip { grid-template-columns: 1fr; gap: 22px; }
+    .feature.flip .copy { order: 0; }
+  }
+
+  /* grid cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 36px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card p { color: var(--muted); margin: 0; font-size: 15px; }
+  .card .ico { font-size: 22px; margin-bottom: 10px; }
+
+  /* limits */
+  .limits { margin-top: 32px; display: grid; gap: 12px; }
+  .limit { display: grid; grid-template-columns: 22px 1fr; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .limit p { margin: 0; color: var(--muted); font-size: 15px; }
+  .limit strong { color: var(--text); }
+
+  /* stack */
+  .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 32px; }
+  .stack div { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stack b { display: block; font-size: 15px; }
+  .stack span { color: var(--muted); font-size: 14px; }
+
+  footer { border-top: 1px solid var(--line); padding: 36px 0 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#">⏳ Parental Controls</a>
+    <ul>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#day">The day</a></li>
+      <li><a href="#tour">Tour</a></li>
+      <li><a href="#trust">Trust model</a></li>
+      <li><a href="#limits">Limits</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Self-hosted screen time for macOS</p>
+    <h1>Screens unlock when <span>the day's work</span> is done.</h1>
+    <p class="lede">A small, self-hosted system that decides when a kid's Mac is allowed to run games and apps. It runs on schedules, daily budgets, and chores that have to be done first, and it's enforced through Apple's own device-management channel instead of an app he can quit.</p>
+    <div class="pills">
+      <span class="pill">Locked by default each day</span>
+      <span class="pill">Weekly schedule windows</span>
+      <span class="pill">Daily &amp; weekly budgets</span>
+      <span class="pill">Chore gates</span>
+      <span class="pill">Parent overrides</span>
+      <span class="pill">No cloud subscription</span>
+    </div>
+    <img class="shot" src="img/status.webp" width="1258" height="931" alt="The parent app's Status tab: apps unblocked, 54 minutes remaining today, 3 hours 54 minutes this week, both of today's gates approved.">
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2>A decision on a server, enforced by the Mac itself.</h2>
+    <p class="lede">The parent app never enforces anything, and neither does anything running on the kid's computer. An always-on policy service makes the decision, and the Mac's built-in management client carries it out.</p>
+
+    <div class="chain" role="list">
+      <div class="node" role="listitem">
+        <div class="k">You</div>
+        <h3>Parent app</h3>
+        <p>A desktop app for editing schedules and budgets, approving gates, and granting time.</p>
+      </div>
+      <div class="node brain" role="listitem">
+        <div class="k">The brain</div>
+        <h3>Policy service</h3>
+        <p>Checks every minute: are the gates approved, is a window open, is there budget left?</p>
+      </div>
+      <div class="node" role="listitem">
+        <div class="k">Delivery</div>
+        <h3>MDM server</h3>
+        <p>Self-hosted NanoMDM queues an <em>install</em> or <em>remove</em> command for the restriction profile.</p>
+      </div>
+      <div class="node" role="listitem">
+        <div class="k">Wake-up</div>
+        <h3>Apple Push</h3>
+        <p>Apple's push service nudges the Mac to check in, usually within a couple of seconds.</p>
+      </div>
+      <div class="node device" role="listitem">
+        <div class="k">Enforcement</div>
+        <h3>The kid's Mac</h3>
+        <p>macOS applies the profile, and apps that aren't allowed simply won't open.</p>
+      </div>
+    </div>
+    <p class="caption">When the answer changes, the service sends exactly one command. The Mac confirms it through a signed webhook, so the dashboard shows what's actually in force on the device, not just what was requested.</p>
+  </div>
+</section>
+
+<section id="day">
+  <div class="wrap">
+    <p class="eyebrow">The day</p>
+    <h2>Every day starts locked.</h2>
+    <p class="lede">Screen time is earned rather than assumed. Each morning at the daily reset, the Mac returns to a locked state and moves forward only as conditions are met.</p>
+
+    <div class="states">
+      <div class="state">
+        <span class="badge b-red">LOCKED</span>
+        <h3>Default</h3>
+        <p>Some of today's required gates, like brushing teeth or reading for 30 minutes, aren't approved yet. Games stay closed.</p>
+      </div>
+      <div class="state">
+        <span class="badge b-amber">ELIGIBLE</span>
+        <h3>Earned, not yet time</h3>
+        <p>Every gate is approved, but no schedule window is open. The Mac unlocks when the next window starts.</p>
+      </div>
+      <div class="state">
+        <span class="badge b-green">UNLOCKED</span>
+        <h3>Play time</h3>
+        <p>A window is open and budget remains. The countdown runs until the window closes or the budget runs out.</p>
+      </div>
+    </div>
+
+    <div class="rule">
+      unlocked <span class="op">=</span> override pin <span class="op">OR</span> ( gates approved <span class="op">AND</span> window open <span class="op">AND</span> daily budget &gt; 0 <span class="op">AND</span> weekly budget &gt; 0 )
+    </div>
+  </div>
+</section>
+
+<section id="tour">
+  <div class="wrap">
+    <p class="eyebrow">A tour of the parent app</p>
+    <h2>Everything a parent needs, in one window.</h2>
+
+    <div class="feature">
+      <div class="copy">
+        <h3>Schedule</h3>
+        <p>Set the windows each weekday when apps are allowed to unlock. A day can have several windows, and a day with none stays locked all day.</p>
+        <ul><li>After school on weekdays</li><li>A morning block on weekends</li></ul>
+      </div>
+      <img class="shot" src="img/schedule.webp" width="1258" height="931" alt="Schedule tab with a 3pm to 8pm window Monday through Saturday and 8:30am to 1pm on Sunday.">
+    </div>
+
+    <div class="feature flip">
+      <div class="copy">
+        <h3>Budget</h3>
+        <p>Set a daily limit for each weekday plus a weekly cap. Time counts on the server's clock while apps are unlocked, so changing the Mac's clock or quitting an app doesn't pause it.</p>
+        <ul><li>Set a day to zero to keep it screen-free</li><li>The weekly cap stops weekend binges</li></ul>
+      </div>
+      <img class="shot" src="img/budget.webp" width="1258" height="931" alt="Budget tab with 60-minute daily limits, Friday set to zero, and a 240-minute weekly cap.">
+    </div>
+
+    <div class="feature">
+      <div class="copy">
+        <h3>Gates</h3>
+        <p>Gates are the things that have to happen first. The kid claims a gate from the menu-bar widget and a parent approves it. Each gate can be required on specific days only, like homework on school days.</p>
+      </div>
+      <img class="shot" src="img/gates.webp" width="1258" height="931" alt="Gates tab showing brush-teeth and read-book approved for today, and their definitions required every day of the week.">
+    </div>
+
+    <div class="feature flip">
+      <div class="copy">
+        <h3>Apps</h3>
+        <p>An <strong>allowlist</strong> says which apps may run while locked, and everything else is blocked. There's no need to track down every game, launcher, or browser and figure out where it's installed.</p>
+        <ul><li>New downloads are blocked automatically</li><li>Games started by launchers are caught too</li></ul>
+      </div>
+      <img class="shot" src="img/apps.webp" width="1258" height="931" alt="Apps tab in allowlist mode listing Finder, System Settings, Calculator, Preview, TextEdit, Notes, Calendar, Dictionary, the Screen Time widget and Tailscale.">
+    </div>
+
+    <div class="feature">
+      <div class="copy">
+        <h3>Overrides</h3>
+        <p>Life doesn't follow a schedule. Grant or take away minutes for today or the week, lock the Mac right now, or unlock it for movie night.</p>
+        <p>Every override has an expiry, so one you forget about can't carry over into tomorrow.</p>
+      </div>
+      <img class="shot" src="img/overrides.webp" width="1258" height="931" alt="Overrides tab with controls to grant or remove minutes and to lock now or unlock for a set duration.">
+    </div>
+
+    <div class="feature flip">
+      <div class="copy">
+        <h3>Settings &amp; suggestions</h3>
+        <p>While apps are locked, the kid's widget suggests other things to do: activities and chores the parent picks.</p>
+        <p>The admin token stays in the app's native backend and is never exposed to the interface.</p>
+      </div>
+      <img class="shot" src="img/settings.webp" width="1258" height="931" alt="Settings tab with the policy service URL, a saved admin token, and editable lists of suggested activities and chores.">
+    </div>
+  </div>
+</section>
+
+<section id="widget">
+  <div class="wrap">
+    <p class="eyebrow">On the kid's Mac</p>
+    <h2>A countdown he can see, and nothing he can switch off.</h2>
+    <p class="lede">A small menu-bar widget shows how much time is left, why apps are locked, and when the next window opens. He can claim a gate with one tap, and it warns him at 10, 5, and 1 minutes before time runs out.</p>
+    <div class="cards">
+      <div class="card"><div class="ico">⏱</div><h3>Countdown</h3><p>Minutes left today and this week, shown right in the menu bar.</p></div>
+      <div class="card"><div class="ico">✋</div><h3>Claim a gate</h3><p>"I did this" sends a claim to the parent to approve.</p></div>
+      <div class="card"><div class="ico">🔔</div><h3>Warnings</h3><p>Heads-up notifications before apps lock, so ending a session is never a surprise.</p></div>
+      <div class="card"><div class="ico">🏀</div><h3>Ideas</h3><p>Activity and chore suggestions while screens are off.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="trust">
+  <div class="wrap">
+    <p class="eyebrow">Trust model</p>
+    <h2>Built around the fact that kids are clever.</h2>
+    <div class="cards">
+      <div class="card"><div class="ico">🧠</div><h3>The decision lives off his machine</h3><p>Anything running in the kid's own login can be killed. The rules are evaluated on a separate always-on server.</p></div>
+      <div class="card"><div class="ico">🙈</div><h3>The widget can't unlock anything</h3><p>It only displays status and submits claims. Quitting it takes away the countdown, not the lock.</p></div>
+      <div class="card"><div class="ico">👤</div><h3>Standard account</h3><p>The kid's account isn't an administrator, so it can't remove the management profile or install apps system-wide.</p></div>
+      <div class="card"><div class="ico">✅</div><h3>Confirmed state</h3><p>Every command has to be acknowledged by the Mac. If the Mac never confirms, the dashboard shows it as unconfirmed.</p></div>
+      <div class="card"><div class="ico">🔐</div><h3>Private network</h3><p>The widget reaches the server over a private Tailscale network. The admin interface isn't exposed to the internet.</p></div>
+      <div class="card"><div class="ico">🏠</div><h3>Yours</h3><p>Self-hosted end to end: no account, no subscription, and no data leaving the house.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <p class="eyebrow">Honest limits</p>
+    <h2>What it doesn't do (yet).</h2>
+    <p class="lede">These came out of testing on a real kid's real Mac.</p>
+    <div class="limits">
+      <div class="limit"><div>⏯</div><p><strong>It only stops apps from starting.</strong> macOS won't open a blocked app, but it doesn't close one that's already running. A game started during a window keeps going after the window ends, which is why the warnings matter. A small root daemon that ends sessions on time is planned.</p></div>
+      <div class="limit"><div>⏲</div><p><strong>Metering counts unlocked time, not usage.</strong> Idle minutes still count, on purpose: use your window. Parents can grant time back.</p></div>
+      <div class="limit"><div>🧭</div><p><strong>Blocklists don't hold up.</strong> Kids install apps inside their own home folders, where a list of blocked paths never reaches. That's why the app uses an allowlist for locked time.</p></div>
+      <div class="limit"><div>💻</div><p><strong>One kid, one Mac.</strong> iPhones, iPads, web filtering, and multiple children aren't supported.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <p class="eyebrow">Under the hood</p>
+    <h2>Small, boring, dependable parts.</h2>
+    <div class="stack">
+      <div><b>Rust + axum</b><span>Policy service and a pure, unit-tested state machine</span></div>
+      <div><b>SQLite</b><span>Schedule, gates, budgets, ledger; back up by copying one file</span></div>
+      <div><b>NanoMDM + SCEP</b><span>Self-hosted Apple MDM server and device certificates</span></div>
+      <div><b>Tauri v2</b><span>Parent desktop app and kid's menu-bar widget</span></div>
+      <div><b>Cloudflare Tunnel</b><span>Reachable device check-ins without opening ports</span></div>
+      <div><b>Tailscale</b><span>Private network between the widget and the server</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">A family project. Built for one household, shared in case it helps yours.</div>
+</footer>
+
+</body>
+</html>
