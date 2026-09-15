@@ -62,6 +62,22 @@
   .shot { border-radius: 12px; filter: drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
   .hero .shot { margin: 0 auto; }
 
+  /* Hover to enlarge tour screenshots so their text is readable. Grows
+     toward the page centre (away from the copy column) and only on devices
+     that can actually hover. */
+  @media (hover: hover) and (min-width: 861px) {
+    .feature .shot {
+      position: relative; z-index: 1; cursor: zoom-in;
+      transform-origin: right center;
+      transition: transform .28s ease, filter .28s ease;
+    }
+    .feature.flip .shot { transform-origin: left center; }
+    .feature .shot:hover {
+      z-index: 5; transform: scale(1.75);
+      filter: drop-shadow(0 40px 80px rgba(0,0,0,.7));
+    }
+  }
+
   /* chain diagram */
   .chain { display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; margin-top: 44px; }
   .node { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; position: relative; }
