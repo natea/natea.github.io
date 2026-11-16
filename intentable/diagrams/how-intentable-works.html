@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How intentable works</title>
+<style>
+  :root {
+    --ground: #f2f5f4;
+    --surface: #ffffff;
+    --ink: #142026;
+    --muted: #55656a;
+    --line: #d3dcda;
+    --agent: #0b6b66;
+    --agent-wash: #e2f1ef;
+    --person: #4a3ab8;
+    --person-wash: #ebe8fb;
+    --gate: #e0a100;
+    --gate-ink: #3a2a00;
+    --gate-wash: #fdf3d6;
+    --focus: #4a3ab8;
+    --display: "Avenir Next", "Avenir", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1618; --surface: #162125; --ink: #e6eeed; --muted: #99aaad; --line: #2a393d;
+      --agent: #43c3b7; --agent-wash: #12302e; --person: #ab9eff; --person-wash: #241f45;
+      --gate: #f2b829; --gate-ink: #2a1e00; --gate-wash: #352a0c; --focus: #ab9eff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0e1618; --surface: #162125; --ink: #e6eeed; --muted: #99aaad; --line: #2a393d;
+    --agent: #43c3b7; --agent-wash: #12302e; --person: #ab9eff; --person-wash: #241f45;
+    --gate: #f2b829; --gate-ink: #2a1e00; --gate-wash: #352a0c; --focus: #ab9eff; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 400 1rem/1.5 var(--body);
+  }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+  .page { max-width: 1320px; margin: 0 auto; padding: 40px 28px 56px; display: grid; gap: 36px; }
+
+  /* header */
+  header { display: grid; gap: 14px; }
+  .topline { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .name { font: 600 0.82rem/1.4 var(--mono); letter-spacing: 0.01em; color: var(--muted); text-decoration: none; }
+  h1 {
+    margin: 0; font: 700 clamp(2rem, 4.2vw, 3.4rem)/1.05 var(--display); letter-spacing: -0.02em;
+    text-wrap: balance; max-width: 22ch;
+  }
+  h1 em { font-style: normal; color: var(--agent); }
+  .lede { margin: 0; max-width: 64ch; font-size: 1.15rem; color: var(--muted); }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .theme {
+    font: 500 0.85rem/1 var(--body); color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer;
+  }
+  .theme:hover { color: var(--ink); }
+
+  /* legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; padding: 0; list-style: none; font-size: 0.92rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 8px; }
+
+  /* the board */
+  .board-wrap { overflow-x: auto; }
+  .board {
+    display: grid; grid-template-columns: 8.5rem repeat(7, minmax(9.5rem, 1fr));
+    grid-template-rows: auto auto auto auto; column-gap: 8px; min-width: 980px;
+    list-style: none; margin: 0; padding: 0;
+  }
+  .lanes { display: grid; grid-row: 1 / span 4; grid-template-rows: subgrid; }
+  .lane-label {
+    align-self: center; font: 600 0.72rem/1.25 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    padding-right: 10px;
+  }
+  .lane-label.person { color: var(--person); }
+  .lane-label.agent { color: var(--agent); }
+  .lane-label.gates { color: var(--gate-ink); }
+  :root[data-theme="dark"] .lane-label.gates { color: var(--gate); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lane-label.gates { color: var(--gate); } }
+
+  .step { display: grid; grid-row: 1 / span 4; grid-template-rows: subgrid; border-radius: 14px; transition: background-color .2s, opacity .2s; }
+  .step-tab {
+    display: grid; gap: 4px; text-align: left; cursor: pointer; padding: 12px 12px 10px;
+    background: transparent; border: 0; border-radius: 14px 14px 0 0; color: var(--ink); font: inherit;
+  }
+  .step-tab .n { font: 600 0.75rem/1 var(--mono); color: var(--muted); }
+  .step-tab .t { font: 700 1.2rem/1.15 var(--display); }
+  .cell { padding: 10px 12px; font-size: 0.92rem; line-height: 1.4; }
+  .cell.person { color: var(--ink); }
+  .cell.agent { color: var(--ink); }
+  .cell.empty { color: var(--muted); font-style: italic; }
+  .who { display: block; font: 600 0.7rem/1 var(--mono); letter-spacing: 0.06em; margin-bottom: 5px; }
+  .person .who { color: var(--person); }
+  .agent .who { color: var(--agent); }
+
+  /* the checkpoint track runs through every step */
+  .check { position: relative; display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 8px 12px; }
+  .check::before {
+    content: ""; position: absolute; left: -8px; right: 0; top: 50%; height: 2px; background: var(--line); z-index: 0;
+  }
+  .step:last-child .check::before { right: 24px; }
+  .mark { position: relative; z-index: 1; flex: none; width: 26px; height: 26px; display: grid; place-items: center; }
+  .mark.human { background: var(--gate); transform: rotate(45deg); width: 22px; height: 22px; border-radius: 3px; margin: 2px; }
+  .mark.auto { border: 3px solid var(--agent); border-radius: 50%; background: var(--surface); }
+  .mark.none { width: 10px; height: 10px; border-radius: 50%; background: var(--line); margin: 8px; }
+  .check-text { position: relative; z-index: 1; background: var(--ground); padding: 2px 6px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; line-height: 1.35; transition: background-color .2s; }
+
+  .chip {
+    display: inline-block; font: 500 0.72rem/1 var(--mono); padding: 4px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); background: var(--surface); white-space: nowrap; margin-top: 6px;
+  }
+
+  .step[aria-current="step"] { background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -18px rgba(20, 32, 38, .45); }
+  .step[aria-current="step"] .check-text { background: var(--surface); }
+  .step[aria-current="step"] .step-tab .n { color: var(--agent); }
+  .board.filtered .step:not(.lit) { opacity: 0.28; }
+  .board.filtered .step.lit { background: var(--agent-wash); }
+  .board.filtered .step.lit .check-text { background: var(--agent-wash); }
+
+  /* detail panel */
+  .detail {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px 28px;
+    display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 28px;
+  }
+  .detail h2 { grid-column: 1 / -1; margin: 0; font: 700 1.6rem/1.15 var(--display); display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .detail h2 .n { font: 600 0.85rem/1 var(--mono); color: var(--muted); }
+  .detail h3 { margin: 0 0 10px; font: 600 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .detail p { margin: 0; max-width: 60ch; }
+  .detail ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+  .trust { border-left: 3px solid var(--gate); padding-left: 16px; }
+  .nav { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 16px; color: var(--muted); font-size: 0.88rem; }
+  .nav-buttons { display: flex; gap: 8px; }
+  .btn {
+    font: 600 0.92rem/1 var(--body); padding: 10px 16px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--ground); color: var(--ink);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--muted); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  kbd { font: 500 0.8rem/1 var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; }
+
+  /* the GitHub comment the person sees */
+  .comment { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 0.93rem; }
+  .comment-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--ground); border-bottom: 1px solid var(--line); font-size: 0.82rem; color: var(--muted); }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 0.7rem/1 var(--display); color: #fff; flex: none; }
+  .avatar.agent { background: var(--agent); }
+  .avatar.person { background: var(--person); }
+  .avatar.owner { background: var(--gate); color: var(--gate-ink); }
+  .comment-head b { color: var(--ink); font-weight: 600; }
+  .comment-body { padding: 12px; display: grid; gap: 8px; }
+  .comment-body code { font: 500 0.86rem/1.3 var(--mono); background: var(--ground); padding: 1px 5px; border-radius: 4px; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .thumb { border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: grid; gap: 4px; font: 600 0.75rem/1 var(--mono); color: var(--muted); }
+  .thumb i { display: block; height: 34px; border-radius: 4px; background:
+      linear-gradient(var(--line), var(--line)) 6px 6px / 60% 5px no-repeat,
+      linear-gradient(var(--line), var(--line)) 6px 16px / 40% 4px no-repeat,
+      linear-gradient(var(--line), var(--line)) 6px 25px / 75% 4px no-repeat, var(--ground); }
+  .thumb.picked { border-color: var(--person); color: var(--person); }
+
+  /* promises */
+  .promises { display: grid; gap: 16px; }
+  .promises-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
+  .promises h2 { margin: 0; font: 700 1.6rem/1.15 var(--display); }
+  .promises-head p { margin: 0; color: var(--muted); }
+  .promise-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .promise {
+    text-align: left; cursor: pointer; font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; display: grid; gap: 10px; align-content: start;
+  }
+  .promise:hover { border-color: var(--muted); }
+  .promise[aria-pressed="true"] { border-color: var(--agent); box-shadow: inset 0 0 0 1px var(--agent); background: var(--agent-wash); }
+  .promise .pt { font: 700 1.3rem/1.1 var(--display); }
+  .promise ul { margin: 0; padding-left: 1.1em; display: grid; gap: 5px; font-size: 0.95rem; }
+  .promise .where { font: 500 0.78rem/1.3 var(--mono); color: var(--muted); }
+
+  /* honest footer */
+  .status { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; border-top: 1px solid var(--line); padding-top: 24px; font-size: 0.95rem; }
+  .status h2 { margin: 0 0 8px; font: 600 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .status p { margin: 0; max-width: 62ch; }
+
+  @media (max-width: 900px) {
+    .page { padding: 24px 16px 40px; gap: 28px; }
+    .board-wrap { overflow: visible; }
+    .board { display: grid; grid-template-columns: 1fr; min-width: 0; gap: 10px; }
+    .lanes { display: none; }
+    .step { grid-row: auto; grid-template-rows: none; background: var(--surface); border: 1px solid var(--line); }
+    .check::before { display: none; }
+    .step:last-child .check::before { display: none; }
+    .check { min-height: 0; }
+    .check-text { background: transparent; }
+    .step[aria-current="step"] .check-text, .board.filtered .step.lit .check-text { background: transparent; }
+    .cell.empty { display: none; }
+    .detail { grid-template-columns: 1fr; padding: 20px 18px; gap: 20px; }
+    .promise-list { grid-template-columns: 1fr; }
+    .status { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <div class="topline">
+      <a class="name" href="../index.html">← intentable · our own tooling, running on stagehopper.app</a>
+      <button class="theme" type="button" id="theme">Dark theme</button>
+    </div>
+    <h1>Ask for a feature in plain words. Get back a <em>reviewed, tested</em> change.</h1>
+    <p class="lede">The people who know what the site needs write a GitHub issue and answer questions in comments, so <strong>they never open a terminal</strong>. An agent does the writing, design and code. Checkpoints along the way, some automatic and some human, stop anything unchecked from reaching the site.</p>
+    <ul class="legend" aria-label="Legend">
+      <li><span class="mark human" aria-hidden="true"></span> A person decides</li>
+      <li><span class="mark auto" aria-hidden="true"></span> An automatic check that can refuse the work</li>
+      <li><span class="chip" style="margin:0">state:triage</span> The issue's label, which shows everyone where it stands</li>
+    </ul>
+  </header>
+
+  <section aria-labelledby="flow-title">
+    <h2 id="flow-title" class="name" style="margin:0 0 12px">How one issue moves · choose a stage, or use <kbd>←</kbd> <kbd>→</kbd></h2>
+    <div class="board-wrap">
+      <ol class="board" id="board">
+        <li class="lanes" aria-hidden="true">
+          <span></span>
+          <span class="lane-label person">The person who asked</span>
+          <span class="lane-label gates">Checkpoint</span>
+          <span class="lane-label agent">The agent</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="detail" id="detail" aria-live="polite" aria-labelledby="detail-title"></section>
+
+  <section class="promises" aria-labelledby="promises-title">
+    <div class="promises-head">
+      <h2 id="promises-title">Three promises, and the stages that keep them</h2>
+      <p>Choose one to light up its stages.</p>
+    </div>
+    <div class="promise-list" id="promises"></div>
+  </section>
+
+  <section class="status" aria-label="Where it stands">
+    <div>
+      <h2>Working today</h2>
+      <p>Requests, questions, proposals with three reviewers and sketches, feedback and picks, the owner's approval, and builds up to the pull request. If a notification from GitHub is missed, it's picked up again within five minutes.</p>
+    </div>
+    <div>
+      <h2>Coming next</h2>
+      <p>A preview of the changed site with a "looks right?" check for whoever asked; merging and deploying through the same loop; a dashboard of every request; and the agent posting under its own identity.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const STEPS = [
+  {
+    title: "Ask", label: "state:triage",
+    person: "Opens an issue in plain words.",
+    check: { kind: "auto", text: "Only people on the list can start work" },
+    agent: "Reads it against the site's rules and decides whether it's clear enough.",
+    comment: { who: "Requester", role: "person", body: "<b>Show a Bandcamp player on each band's page</b><br>When a band has music on Bandcamp, visitors should be able to listen without leaving the site." },
+    happens: "The issue is labelled and handed to the agent. The agent compares the request with the specs that describe how the site works today.",
+    trust: ["Only the people on the intake list can start a run. Anyone else's comments are ignored."]
+  },
+  {
+    title: "Clarify", label: "state:needs-info",
+    person: "Answers the agent's question in a comment.",
+    check: { kind: "none", text: "No guessing" },
+    agent: "Asks one question at a time until the request is clear.",
+    comment: { who: "Agent", role: "agent", body: "One question before I write this up: should the player show on event listings too, or only on band pages?" },
+    happens: "While a question waits on someone, the issue is assigned to them, so it's always clear who's holding it. Each reply starts a short follow-up.",
+    trust: ["The agent never fills an open decision in by itself. It asks, or it stops and says why."]
+  },
+  {
+    title: "Propose", label: "state:spec-review",
+    person: "Reads a proposal page linked from the issue.",
+    check: { kind: "auto", text: "Three independent reviewers" },
+    agent: "Writes the proposal: what and why, the behaviour as testable rules, the task list, and three sketches when there are screens.",
+    comment: { who: "Agent", role: "agent", body: "The proposal is ready to read: <code>add-bandcamp-embedded-player</code>. Here are three ways it could look:", thumbs: true },
+    happens: "Three reviewers start fresh and each looks at the draft one way: what could break, whether it fits every existing rule of the site, and whether it honours decisions already made. The draft is revised until all three are satisfied.",
+    trust: ["Every change is written against the same living specification of the site, so new features stay consistent with old ones.", "A reviewer who didn't write the draft has to sign off, not the author."]
+  },
+  {
+    title: "Shape", label: "state:spec-review",
+    person: "Gives feedback, or replies with a sketch's letter to pick it.",
+    check: { kind: "human", text: "The person who asked picks the design" },
+    agent: "Revises the proposal for each piece of feedback, and keeps earlier sketches.",
+    comment: { who: "Requester", role: "person", body: "B, but put the player under the band's photo.", thumbs: "B" },
+    happens: "Any reply that isn't just a letter starts a revision. Earlier rounds of sketches stay on the page so they can be compared.",
+    trust: ["The person who asked sees the screens and chooses one before any code is written."]
+  },
+  {
+    title: "Approve", label: "/approve",
+    person: "The owner reads the final proposal and comments /approve.",
+    check: { kind: "human", text: "The owner says yes (G2)" },
+    agent: "Records the approval and opens one sub-issue per group of tasks.",
+    comment: { who: "Owner", role: "owner", body: "<code>/approve</code>" },
+    happens: "The approval is recorded on the change's own branch. Ticks in the task list keep the sub-issues up to date as the build goes.",
+    trust: ["Nothing is built until the owner explicitly approves the proposal."]
+  },
+  {
+    title: "Build", label: "pull request",
+    person: "Watches the sub-issues tick off.",
+    check: { kind: "auto", text: "Tests at every step, then a final check" },
+    agent: "Builds in a fresh, isolated sandbox, one group of tasks at a time, then tidies the code.",
+    comment: { who: "Agent", role: "agent", body: "The player is built: band pages show it whenever a band has a Bandcamp link. One check is left for a person: playing a track in a real browser. Pull request opened for review." },
+    happens: "Each group of tasks is committed only when the whole test suite passes. A final automatic check then reads the work and refuses it if any rule is broken: a failing test, a skipped task with no reason, a protected file changed, or no record of what was done.",
+    trust: ["This weekend a build agent stopped halfway through. The final check refused the run, so nothing broken was proposed and the cause was found the same morning.", "Every run starts from a clean sandbox, so one run can't leave a mess for the next."]
+  },
+  {
+    title: "Ship", label: "merged",
+    person: "The owner reviews the pull request, merges it and deploys.",
+    check: { kind: "human", text: "The owner accepts the code (G4)" },
+    agent: "Hands over the pull request with a summary and anything left for a person.",
+    comment: { who: "Owner", role: "owner", body: "Merged and deployed. Thanks!" },
+    happens: "Today the owner reviews, merges and deploys by hand. Next, the agent will put up a preview of the changed site so whoever asked can check it looks right first.",
+    trust: ["A person reviews the code before it reaches the live site."]
+  }
+];
+
+const PROMISES = [
+  {
+    title: "Consistency",
+    points: ["Every request follows the same steps, in the same order.", "Every change is written against the site's living specification and design rules.", "When a change ships, the specification is updated, so the next change starts from the truth."],
+    steps: [0, 2, 5]
+  },
+  {
+    title: "Reliability",
+    points: ["Each run starts in a fresh, isolated sandbox.", "Nothing is committed unless the whole test suite passes.", "A final check refuses any build that breaks a rule, and missed notifications are caught up."],
+    steps: [0, 5]
+  },
+  {
+    title: "Quality",
+    points: ["Three independent reviewers check every proposal.", "The person who asked picks the design before code is written.", "The owner approves both the plan and the finished code."],
+    steps: [2, 3, 4, 6]
+  }
+];
+
+const board = document.getElementById("board");
+const detail = document.getElementById("detail");
+const promisesEl = document.getElementById("promises");
+let current = 0;
+let activePromise = -1;
+
+function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+STEPS.forEach((s, i) => {
+  const li = document.createElement("li");
+  li.className = "step";
+  li.dataset.index = i;
+  li.innerHTML = `
+    <button class="step-tab" type="button" aria-controls="detail" data-index="${i}">
+      <span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${s.title}</span>
+    </button>
+    <div class="cell person"><span class="who">${i === 4 || i === 6 ? "OWNER" : "PERSON"}</span>${esc(s.person)}</div>
+    <div class="check"><span class="mark ${s.check.kind}" aria-hidden="true"></span><span class="check-text">${esc(s.check.text)}</span></div>
+    <div class="cell agent"><span class="who">AGENT</span>${esc(s.agent)}<br><span class="chip">${esc(s.label)}</span></div>`;
+  board.appendChild(li);
+});
+
+const stepEls = [...board.querySelectorAll(".step")];
+const tabs = [...board.querySelectorAll(".step-tab")];
+
+function thumbs(picked) {
+  return `<div class="thumbs">${["A", "B", "C"].map(l => `<span class="thumb${picked === l ? " picked" : ""}"><i></i>Sketch ${l}${picked === l ? " ✓" : ""}</span>`).join("")}</div>`;
+}
+
+function render() {
+  const s = STEPS[current];
+  stepEls.forEach((el, i) => { if (i === current) el.setAttribute("aria-current", "step"); else el.removeAttribute("aria-current"); });
+  tabs.forEach((t, i) => t.setAttribute("aria-pressed", String(i === current)));
+  const c = s.comment;
+  const kind = { human: "A person decides", auto: "Automatic check", none: "No checkpoint" }[s.check.kind];
+  detail.innerHTML = `
+    <h2 id="detail-title"><span class="n">${String(current + 1).padStart(2, "0")} / 07</span>${s.title}<span class="chip" style="margin:0">${esc(s.label)}</span></h2>
+    <div>
+      <h3>What you see on the issue</h3>
+      <div class="comment">
+        <div class="comment-head"><span class="avatar ${c.role}" aria-hidden="true">${c.who[0]}</span><b>${c.who}</b> commented</div>
+        <div class="comment-body"><p>${c.body}</p>${c.thumbs ? thumbs(c.thumbs === true ? "" : c.thumbs) : ""}</div>
+      </div>
+    </div>
+    <div>
+      <h3>What happens</h3>
+      <p>${esc(s.happens)}</p>
+    </div>
+    <div class="trust">
+      <h3>Why you can trust it · ${kind}</h3>
+      <ul>${s.trust.map(t => `<li>${esc(t)}</li>`).join("")}</ul>
+    </div>
+    <div class="nav">
+      <span>Stage ${current + 1} of 7</span>
+      <span class="nav-buttons">
+        <button class="btn" type="button" id="prev" ${current === 0 ? "disabled" : ""}>← ${current > 0 ? STEPS[current - 1].title : "Back"}</button>
+        <button class="btn" type="button" id="next" ${current === 6 ? "disabled" : ""}>${current < 6 ? STEPS[current + 1].title : "Next"} →</button>
+      </span>
+    </div>`;
+  detail.querySelector("#prev").addEventListener("click", () => go(current - 1));
+  detail.querySelector("#next").addEventListener("click", () => go(current + 1));
+}
+
+function go(i) {
+  if (i < 0 || i >= STEPS.length) return;
+  current = i;
+  render();
+}
+
+tabs.forEach(t => t.addEventListener("click", () => go(Number(t.dataset.index))));
+stepEls.forEach((el, i) => el.addEventListener("click", e => { if (!e.target.closest("button")) go(i); }));
+
+document.addEventListener("keydown", e => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.target.closest && e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") { go(current + 1); e.preventDefault(); }
+  if (e.key === "ArrowLeft") { go(current - 1); e.preventDefault(); }
+});
+
+PROMISES.forEach((p, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "promise";
+  b.setAttribute("aria-pressed", "false");
+  b.innerHTML = `<span class="pt">${p.title}</span><ul>${p.points.map(x => `<li>${esc(x)}</li>`).join("")}</ul><span class="where">Kept at: ${p.steps.map(n => STEPS[n].title).join(" · ")}</span>`;
+  b.addEventListener("click", () => {
+    activePromise = activePromise === i ? -1 : i;
+    [...promisesEl.children].forEach((el, j) => el.setAttribute("aria-pressed", String(j === activePromise)));
+    board.classList.toggle("filtered", activePromise >= 0);
+    stepEls.forEach((el, j) => el.classList.toggle("lit", activePromise >= 0 && PROMISES[activePromise].steps.includes(j)));
+  });
+  promisesEl.appendChild(b);
+});
+
+// theme toggle: the attribute wins over the system preference either way
+const themeBtn = document.getElementById("theme");
+function effectiveDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function labelTheme() { themeBtn.textContent = effectiveDark() ? "Light theme" : "Dark theme"; }
+themeBtn.addEventListener("click", () => {
+  document.documentElement.dataset.theme = effectiveDark() ? "light" : "dark";
+  labelTheme();
+});
+labelTheme();
+
+render();
+</script>
+</body>
+</html>

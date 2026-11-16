@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>intentable</title>
+<meta name="description" content="intentable turns a plain-words GitHub issue into a reviewed, tested pull request, with people deciding only where their judgment matters.">
+<style>
+  :root {
+    --ground: #f2f5f4;
+    --surface: #ffffff;
+    --ink: #142026;
+    --muted: #55656a;
+    --line: #d3dcda;
+    --agent: #0b6b66;
+    --agent-wash: #e2f1ef;
+    --person: #4a3ab8;
+    --person-wash: #ebe8fb;
+    --gate: #e0a100;
+    --gate-ink: #3a2a00;
+    --gate-wash: #fdf3d6;
+    --focus: #4a3ab8;
+    --display: "Avenir Next", "Avenir", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1618; --surface: #162125; --ink: #e6eeed; --muted: #99aaad; --line: #2a393d;
+      --agent: #43c3b7; --agent-wash: #12302e; --person: #ab9eff; --person-wash: #241f45;
+      --gate: #f2b829; --gate-ink: #2a1e00; --gate-wash: #352a0c; --focus: #ab9eff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0e1618; --surface: #162125; --ink: #e6eeed; --muted: #99aaad; --line: #2a393d;
+    --agent: #43c3b7; --agent-wash: #12302e; --person: #ab9eff; --person-wash: #241f45;
+    --gate: #f2b829; --gate-ink: #2a1e00; --gate-wash: #352a0c; --focus: #ab9eff; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 400 1rem/1.55 var(--body); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+  a { color: var(--agent); text-underline-offset: 3px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* top bar */
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 0; }
+  .wordmark { font: 700 1.15rem/1 var(--mono); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+  .wordmark .glyph { width: 14px; height: 14px; background: var(--gate); transform: rotate(45deg); border-radius: 2px; }
+  .bar nav { display: flex; align-items: center; gap: 18px; font-size: 0.92rem; }
+  .bar nav a { color: var(--muted); text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+  .theme { font: 500 0.85rem/1 var(--body); color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  .theme:hover { color: var(--ink); }
+
+  /* hero */
+  .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; padding: 40px 0 72px; }
+  h1 { margin: 0 0 20px; font: 700 clamp(2.3rem, 5vw, 3.9rem)/1.04 var(--display); letter-spacing: -0.025em; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--agent); }
+  .lede { margin: 0 0 28px; font-size: 1.2rem; color: var(--muted); max-width: 52ch; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; font: 600 1rem/1 var(--body); padding: 15px 22px; border-radius: 12px; text-decoration: none; }
+  .cta.primary { background: var(--agent); color: var(--surface); }
+  .cta.primary:hover { filter: brightness(1.08); }
+  .cta.secondary { color: var(--ink); border: 1px solid var(--line); background: var(--surface); }
+  .cta.secondary:hover { border-color: var(--muted); }
+
+  /* the thread: one issue, top to bottom */
+  .thread { position: relative; list-style: none; margin: 0; padding: 0 0 0 30px; display: grid; gap: 12px; }
+  .thread::before { content: ""; position: absolute; left: 10px; top: 14px; bottom: 14px; width: 2px; background: var(--line); }
+  .post { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 0.93rem; overflow: hidden; }
+  .post::before { content: ""; position: absolute; left: -26px; top: 15px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); }
+  .post.gate::before { border: 0; background: var(--gate); border-radius: 2px; transform: rotate(45deg); left: -25px; width: 11px; height: 11px; }
+  .post.check::before { border: 3px solid var(--agent); }
+  .post-head { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--ground); border-bottom: 1px solid var(--line); font-size: 0.8rem; color: var(--muted); }
+  .post-head b { color: var(--ink); font-weight: 600; }
+  .post-head .label { margin-left: auto; font: 500 0.7rem/1 var(--mono); padding: 3px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 0.66rem/1 var(--display); color: var(--surface); flex: none; }
+  .avatar.person { background: var(--person); }
+  .avatar.agent { background: var(--agent); }
+  .avatar.owner { background: var(--gate); color: var(--gate-ink); }
+  .post p { margin: 0; padding: 10px 12px; }
+  .post code { font: 500 0.85rem/1.3 var(--mono); background: var(--ground); padding: 1px 5px; border-radius: 4px; }
+  .merged { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-weight: 600; }
+  .merged .pill { font: 600 0.75rem/1 var(--body); color: var(--surface); background: var(--person); padding: 5px 10px; border-radius: 999px; }
+
+  section { padding: 72px 0; border-top: 1px solid var(--line); }
+  .eyebrow { margin: 0 0 12px; font: 600 0.74rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h2 { margin: 0 0 16px; font: 700 clamp(1.7rem, 3vw, 2.4rem)/1.1 var(--display); letter-spacing: -0.015em; text-wrap: balance; max-width: 26ch; }
+  .intro { margin: 0 0 36px; color: var(--muted); font-size: 1.08rem; max-width: 62ch; }
+
+  /* who does what */
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .role { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  .role h3 { margin: 0 0 6px; font: 700 1.25rem/1.3 var(--display); display: flex; align-items: center; gap: 10px; }
+  .role h3::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--c); flex: none; }
+  .role.owner h3::before { border-radius: 2px; transform: rotate(45deg); width: 11px; height: 11px; }
+  .role .does { margin: 0 0 14px; color: var(--muted); font-size: 0.95rem; }
+  .role ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 0.96rem; }
+  .role.person { --c: var(--person); }
+  .role.owner { --c: var(--gate); }
+  .role.agent { --c: var(--agent); }
+
+  /* steps */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; counter-reset: s; }
+  .steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; display: grid; gap: 8px; align-content: start; }
+  .steps li::before { content: counter(s, decimal-leading-zero); font: 600 0.75rem/1 var(--mono); color: var(--muted); }
+  .steps b { font: 700 1.1rem/1.15 var(--display); display: flex; align-items: center; gap: 8px; }
+  .steps span { font-size: 0.9rem; color: var(--muted); line-height: 1.45; }
+  .mk { flex: none; display: inline-block; }
+  .mk.human { width: 11px; height: 11px; background: var(--gate); transform: rotate(45deg); border-radius: 2px; }
+  .mk.auto { width: 13px; height: 13px; border: 3px solid var(--agent); border-radius: 50%; }
+  .key { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 0 0; font-size: 0.9rem; color: var(--muted); }
+  .key span { display: inline-flex; align-items: center; gap: 8px; }
+  .diagram-link { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 18px 22px; border-radius: 14px; background: var(--agent-wash); border: 1px solid var(--line); }
+  .diagram-link p { margin: 0; flex: 1 1 280px; }
+
+  /* promises */
+  .promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .promise { padding: 26px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+  .promise h3 { margin: 0 0 4px; font: 700 1.4rem/1.15 var(--display); }
+  .promise .tag { margin: 0 0 16px; color: var(--muted); font-size: 0.95rem; }
+  .promise ul { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+
+  /* under the hood */
+  .stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); }
+  .stack div { padding: 20px 22px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+  .stack dt { font: 600 0.95rem/1.3 var(--mono); margin-bottom: 6px; }
+  .stack dd { margin: 0; color: var(--muted); font-size: 0.94rem; }
+
+  /* status */
+  .status { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .status div { padding: 24px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); }
+  .status h3 { margin: 0 0 12px; font: 600 0.74rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+  .status .now h3 { color: var(--agent); }
+  .status .next h3 { color: var(--muted); }
+  .status ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--muted); font-size: 0.9rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+
+  @media (max-width: 1000px) {
+    .steps { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  }
+  @media (max-width: 860px) {
+    .wrap { padding: 0 16px; }
+    .hero { grid-template-columns: 1fr; gap: 40px; padding: 20px 0 56px; }
+    .roles, .promises, .status, .stack { grid-template-columns: 1fr; }
+    section { padding: 56px 0; }
+    .bar nav a { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="wrap bar">
+  <a class="wordmark" href="#top"><span class="glyph" aria-hidden="true"></span>intentable</a>
+  <nav aria-label="Page">
+    <a href="#how">How it works</a>
+    <a href="#promises">Promises</a>
+    <a href="diagrams/how-intentable-works.html">Diagram</a>
+    <button class="theme" type="button" id="theme">Dark theme</button>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <h1>Ask for a feature in plain words. Get back a <em>reviewed, tested</em> change.</h1>
+      <p class="lede">intentable turns a GitHub issue into a pull request. The people who know what the site needs write the issue and answer questions in comments, so <strong>they never open a terminal</strong>. An agent does the writing, design and code, and checkpoints, some automatic and some human, stop anything unchecked from reaching the site.</p>
+      <div class="ctas">
+        <a class="cta primary" href="diagrams/how-intentable-works.html">See how one issue moves <span aria-hidden="true">→</span></a>
+        <a class="cta secondary" href="#how">The seven steps</a>
+      </div>
+    </div>
+
+    <ol class="thread" aria-label="An example issue, from request to merge">
+      <li class="post check">
+        <div class="post-head"><span class="avatar person" aria-hidden="true">R</span><b>Requester</b> opened this issue<span class="label">state:triage</span></div>
+        <p><b>Show a Bandcamp player on each band's page</b><br>When a band has music on Bandcamp, visitors should be able to listen without leaving the site.</p>
+      </li>
+      <li class="post">
+        <div class="post-head"><span class="avatar agent" aria-hidden="true">A</span><b>Agent</b><span class="label">state:needs-info</span></div>
+        <p>One question first: should the player show on event listings too, or only on band pages?</p>
+      </li>
+      <li class="post gate">
+        <div class="post-head"><span class="avatar person" aria-hidden="true">R</span><b>Requester</b> picked a sketch<span class="label">state:spec-review</span></div>
+        <p>B, but put the player under the band's photo.</p>
+      </li>
+      <li class="post gate">
+        <div class="post-head"><span class="avatar owner" aria-hidden="true">O</span><b>Owner</b> approved the proposal</div>
+        <p><code>/approve</code></p>
+      </li>
+      <li class="post check">
+        <div class="post-head"><span class="avatar agent" aria-hidden="true">A</span><b>Agent</b> opened a pull request</div>
+        <div class="merged"><span class="pill">Merged</span> Add the Bandcamp player to band pages</div>
+      </li>
+    </ol>
+  </div>
+
+  <section aria-labelledby="who-title">
+    <div class="wrap">
+      <p class="eyebrow">Who does what</p>
+      <h2 id="who-title">People decide. The agent does the rest.</h2>
+      <p class="intro">Everything happens on the GitHub issue, in comments. Each person steps in only where their judgment matters.</p>
+      <div class="roles">
+        <article class="role person">
+          <h3>The person who asks</h3>
+          <p class="does">Knows what the site needs; doesn't need to know how it's built.</p>
+          <ul><li>Opens an issue in plain words</li><li>Answers the agent's questions</li><li>Gives feedback on sketches and picks one</li></ul>
+        </article>
+        <article class="role owner">
+          <h3>The owner</h3>
+          <p class="does">Holds the two gates that matter most.</p>
+          <ul><li>Approves the proposal before anything is built</li><li>Reviews and merges the finished code</li></ul>
+        </article>
+        <article class="role agent">
+          <h3>The agent</h3>
+          <p class="does">Does the writing, design and code.</p>
+          <ul><li>Triages, and asks what's unclear</li><li>Writes the proposal, with reviews and sketches</li><li>Builds it, tested, up to the pull request</li></ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title">Seven steps, the same for every request</h2>
+      <p class="intro">The issue's label shows everyone where it stands, and it's always assigned to whoever holds it: the person who asked while a question waits on them, the owner otherwise.</p>
+      <ol class="steps">
+        <li><b><span class="mk auto" aria-hidden="true"></span>Ask</b><span>Someone on the intake list opens an issue.</span></li>
+        <li><b>Clarify</b><span>The agent asks one question at a time until it's clear.</span></li>
+        <li><b><span class="mk auto" aria-hidden="true"></span>Propose</b><span>A written proposal, checked by three independent reviewers, with sketches when there are screens.</span></li>
+        <li><b><span class="mk human" aria-hidden="true"></span>Shape</b><span>Feedback starts a revision; a sketch's letter picks it.</span></li>
+        <li><b><span class="mk human" aria-hidden="true"></span>Approve</b><span>The owner comments <code>/approve</code>.</span></li>
+        <li><b><span class="mk auto" aria-hidden="true"></span>Build</b><span>Built in a fresh sandbox, tests green at every step, then a final check.</span></li>
+        <li><b><span class="mk human" aria-hidden="true"></span>Ship</b><span>The owner reviews the pull request and merges.</span></li>
+      </ol>
+      <p class="key"><span><span class="mk human" aria-hidden="true"></span>A person decides</span><span><span class="mk auto" aria-hidden="true"></span>An automatic check that can refuse the work</span></p>
+      <div class="diagram-link">
+        <p><b>Walk through it stage by stage.</b> The interactive diagram shows, for each step, what you'd see on the issue, what happens behind it, and why you can trust it.</p>
+        <a class="cta primary" href="diagrams/how-intentable-works.html">Open the diagram <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section id="promises" aria-labelledby="promises-title">
+    <div class="wrap">
+      <p class="eyebrow">What it guarantees</p>
+      <h2 id="promises-title">Consistency, reliability and quality, built into the steps</h2>
+      <p class="intro">Non-technical people can drive the work because the guarantees don't depend on them, or on the agent, getting everything right.</p>
+      <div class="promises">
+        <article class="promise">
+          <h3>Consistency</h3>
+          <p class="tag">Every change starts from the truth.</p>
+          <ul><li>Every request follows the same steps, in the same order.</li><li>Each change is written against the site's living specification and design rules.</li><li>When a change ships, the specification is updated for the next one.</li></ul>
+        </article>
+        <article class="promise">
+          <h3>Reliability</h3>
+          <p class="tag">Nothing half-done gets through.</p>
+          <ul><li>Each run starts in a fresh, isolated sandbox.</li><li>Nothing is committed unless the whole test suite passes.</li><li>A final check refuses any build that breaks a rule, and missed notifications are caught up within minutes.</li></ul>
+        </article>
+        <article class="promise">
+          <h3>Quality</h3>
+          <p class="tag">More than one pair of eyes, every time.</p>
+          <ul><li>Three independent reviewers check every proposal.</li><li>The person who asked picks the design before any code is written.</li><li>The owner approves both the plan and the finished code.</li></ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="hood-title">
+    <div class="wrap">
+      <p class="eyebrow">Under the hood</p>
+      <h2 id="hood-title">Ordinary tools, wired together</h2>
+      <p class="intro">intentable is our own tooling, not a product. It runs today on <a href="https://stagehopper.app">StageHopper</a>, a calendar of live music across New England.</p>
+      <dl class="stack">
+        <div><dt>GitHub issues</dt><dd>Where people ask, answer, pick and approve. Labels and assignees show where each request stands.</dd></div>
+        <div><dt>The bridge</dt><dd>A small service that hears GitHub's notifications, starts the agent's runs and relays their questions back.</dd></div>
+        <div><dt>OpenSpec</dt><dd>Proposals, testable requirements and task lists, kept beside the code as the site's living specification.</dd></div>
+        <div><dt>Fabro</dt><dd>Runs each workflow (triage, clarify, propose, build) as a graph of steps, and keeps a record of every run.</dd></div>
+        <div><dt>Daytona sandboxes</dt><dd>A fresh, isolated machine for every run, so one run can't leave a mess for the next.</dd></div>
+        <div><dt>Claude Code</dt><dd>The agent inside each step, doing the reading, writing, design and code.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section aria-labelledby="status-title">
+    <div class="wrap">
+      <p class="eyebrow">Where it stands</p>
+      <h2 id="status-title">What works today, and what's next</h2>
+      <div class="status">
+        <div class="now">
+          <h3>Working today</h3>
+          <ul><li>Requests, triage and clarifying questions</li><li>Proposals with three reviewers, and sketches</li><li>Feedback, picks and revisions, earlier rounds kept</li><li>The owner's approval, with a sub-issue per group of tasks</li><li>Builds up to the pull request</li></ul>
+        </div>
+        <div class="next">
+          <h3>Coming next</h3>
+          <ul><li>A preview of the changed site, with a "looks right?" check for whoever asked</li><li>Merging and deploying through the same loop</li><li>A dashboard of every request</li><li>The agent posting under its own identity</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>intentable · our own tooling, running on stagehopper.app</span>
+    <a href="diagrams/how-intentable-works.html">How intentable works →</a>
+  </div>
+</footer>
+
+<script>
+  const btn = document.getElementById("theme");
+  const root = document.documentElement;
+  function isDark() {
+    const t = root.dataset.theme;
+    return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function label() { btn.textContent = isDark() ? "Light theme" : "Dark theme"; }
+  try { const saved = localStorage.getItem("intentable-theme"); if (saved) root.dataset.theme = saved; } catch (e) {}
+  label();
+  btn.addEventListener("click", () => {
+    root.dataset.theme = isDark() ? "light" : "dark";
+    try { localStorage.setItem("intentable-theme", root.dataset.theme); } catch (e) {}
+    label();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", label);
+</script>
+</body>
+</html>
