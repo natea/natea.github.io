@@ -62,6 +62,9 @@
   .lede { margin: 0 0 28px; font-size: 1.2rem; color: var(--muted); max-width: 52ch; }
   .lede strong { color: var(--ink); font-weight: 600; }
   .ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .flow { margin: 36px 0 28px; }
+  .flow img { display: block; width: 100%; max-width: 880px; height: auto; margin: 0 auto; background: #fff; border-radius: 14px; }
+  .flow figcaption { max-width: 880px; margin: 12px auto 0; font-size: .95rem; opacity: .8; }
   .cta { display: inline-flex; align-items: center; gap: 10px; font: 600 1rem/1 var(--body); padding: 15px 22px; border-radius: 12px; text-decoration: none; }
   .cta.primary { background: var(--agent); color: var(--surface); }
   .cta.primary:hover { filter: brightness(1.08); }
@@ -246,6 +249,10 @@
         <li><b><span class="mk human" aria-hidden="true"></span>Ship</b><span>The owner checks the preview and merges. The issue closes once the change is live.</span></li>
       </ol>
       <p class="key"><span><span class="mk human" aria-hidden="true"></span>A person decides</span><span><span class="mk auto" aria-hidden="true"></span>An automatic check that can refuse the work</span></p>
+      <figure class="flow">
+        <a href="diagrams/issue-to-live.svg"><img src="diagrams/issue-to-live.svg" width="1082" height="1497" loading="lazy" alt="One issue's path through eight stages, from a request to the change live on the site."></a>
+        <figcaption>One request, hop by hop. The marker follows the 17 numbered hops in order. Slanted boxes are people; the rest is automatic.</figcaption>
+      </figure>
       <div class="diagram-link">
         <p><b>Walk through it stage by stage.</b> The interactive diagram shows, for each step, what you'd see on the issue, what happens behind it, and why you can trust it.</p>
         <a class="cta primary" href="diagrams/how-intentable-works.html">Open the diagram <span aria-hidden="true">→</span></a>
@@ -292,6 +299,7 @@
         <div><dt>Preview environments</dt><dd>Each pull request runs on Cloud Run, on its own Neon branch of a nightly copy of the live data with people's details removed. It sends no email, and it's gone once the change merges.</dd></div>
         <div><dt>Claude Code</dt><dd>The agent inside each step, doing the reading, writing, design and code.</dd></div>
       </dl>
+      <p class="intro"><a href="diagrams/issue-to-live-systems.html">See the same journey as a map of these systems <span aria-hidden="true">→</span></a></p>
     </div>
   </section>
 
