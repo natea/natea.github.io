@@ -70,7 +70,7 @@
   /* the board */
   .board-wrap { overflow-x: auto; }
   .board {
-    display: grid; grid-template-columns: 8.5rem repeat(7, minmax(9.5rem, 1fr));
+    display: grid; grid-template-columns: 8.5rem repeat(8, minmax(7.75rem, 1fr));
     grid-template-rows: auto auto auto auto; column-gap: 8px; min-width: 980px;
     list-style: none; margin: 0; padding: 0;
   }
@@ -92,7 +92,9 @@
   }
   .step-tab .n { font: 600 0.75rem/1 var(--mono); color: var(--muted); }
   .step-tab .t { font: 700 1.2rem/1.15 var(--display); }
-  .cell { padding: 10px 12px; font-size: 0.92rem; line-height: 1.4; }
+  .step { grid-template-columns: minmax(0, 1fr); }
+  .cell { padding: 10px 12px; font-size: 0.92rem; line-height: 1.4; min-width: 0; overflow-wrap: anywhere; }
+  .step .chip { max-width: 100%; white-space: normal; }
   .cell.person { color: var(--ink); }
   .cell.agent { color: var(--ink); }
   .cell.empty { color: var(--muted); font-style: italic; }
@@ -248,11 +250,11 @@
   <section class="status" aria-label="Where it stands">
     <div>
       <h2>Working today</h2>
-      <p>Requests, questions, proposals with three reviewers and sketches, feedback and picks, the owner's approval, and builds up to the pull request. If a notification from GitHub is missed, it's picked up again within five minutes.</p>
+      <p>Requests, questions, proposals with three reviewers and sketches, feedback and picks, the owner's approval, builds up to the pull request, a preview of every pull request, and each issue followed to merged and deployed. If a notification from GitHub is missed, it's picked up again within five minutes.</p>
     </div>
     <div>
       <h2>Coming next</h2>
-      <p>A preview of the changed site with a "looks right?" check for whoever asked; merging and deploying through the same loop; a dashboard of every request; and the agent posting under its own identity.</p>
+      <p>Other issue trackers besides GitHub; a dashboard of every request; and the agent posting under its own identity.</p>
     </div>
   </section>
 </main>
@@ -314,13 +316,22 @@ const STEPS = [
     trust: ["This weekend a build agent stopped halfway through. The final check refused the run, so nothing broken was proposed and the cause was found the same morning.", "Every run starts from a clean sandbox, so one run can't leave a mess for the next."]
   },
   {
-    title: "Ship", label: "merged",
-    person: "The owner reviews the pull request, merges it and deploys.",
+    title: "Preview", label: "state:preview-ready",
+    person: "Opens the link and tries the change on a copy of the site.",
+    check: { kind: "none", text: "Tried before merging" },
+    agent: "Puts the pull request's code up as its own copy of the site, and links the pages to check.",
+    comment: { who: "Agent", role: "agent", body: "The preview of this change is ready to check before it's merged. Where to look: the player on a band's page." },
+    happens: "As soon as the pull request opens, its code is deployed as a separate copy of the site, on last night's copy of the live data with people's details removed. The preview can't send email or reach the live database, and it's removed when the change merges.",
+    trust: ["Whoever asked sees the change working, with real listings, before it's merged.", "A preview holds no subscribers, accounts or submitter emails, and nothing saved on it reaches the live site."]
+  },
+  {
+    title: "Ship", label: "merged → deployed",
+    person: "The owner checks the preview, reviews the pull request and merges it.",
     check: { kind: "human", text: "The owner accepts the code (G4)" },
-    agent: "Hands over the pull request with a summary and anything left for a person.",
-    comment: { who: "Owner", role: "owner", body: "Merged and deployed. Thanks!" },
-    happens: "Today the owner reviews, merges and deploys by hand. Next, the agent will put up a preview of the changed site so whoever asked can check it looks right first.",
-    trust: ["A person reviews the code before it reaches the live site."]
+    agent: "Follows the change to the live site, then says so on the issue and closes it.",
+    comment: { who: "Agent", role: "agent", body: "This change is live on the site." },
+    happens: "Merging is the approval. The site deploys the merge, the issue moves to merged and then deployed on the board, and it closes with a link to the live site.",
+    trust: ["A person reviews the code before it reaches the live site.", "An issue only says deployed once the host reports a deploy that contains the merge."]
   }
 ];
 
@@ -338,7 +349,7 @@ const PROMISES = [
   {
     title: "Quality",
     points: ["Three independent reviewers check every proposal.", "The person who asked picks the design before code is written.", "The owner approves both the plan and the finished code."],
-    steps: [2, 3, 4, 6]
+    steps: [2, 3, 4, 6, 7]
   }
 ];
 
@@ -358,7 +369,7 @@ STEPS.forEach((s, i) => {
     <button class="step-tab" type="button" aria-controls="detail" data-index="${i}">
       <span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${s.title}</span>
     </button>
-    <div class="cell person"><span class="who">${i === 4 || i === 6 ? "OWNER" : "PERSON"}</span>${esc(s.person)}</div>
+    <div class="cell person"><span class="who">${i === 4 || i === 7 ? "OWNER" : "PERSON"}</span>${esc(s.person)}</div>
     <div class="check"><span class="mark ${s.check.kind}" aria-hidden="true"></span><span class="check-text">${esc(s.check.text)}</span></div>
     <div class="cell agent"><span class="who">AGENT</span>${esc(s.agent)}<br><span class="chip">${esc(s.label)}</span></div>`;
   board.appendChild(li);
@@ -378,7 +389,7 @@ function render() {
   const c = s.comment;
   const kind = { human: "A person decides", auto: "Automatic check", none: "No checkpoint" }[s.check.kind];
   detail.innerHTML = `
-    <h2 id="detail-title"><span class="n">${String(current + 1).padStart(2, "0")} / 07</span>${s.title}<span class="chip" style="margin:0">${esc(s.label)}</span></h2>
+    <h2 id="detail-title"><span class="n">${String(current + 1).padStart(2, "0")} / ${String(STEPS.length).padStart(2, "0")}</span>${s.title}<span class="chip" style="margin:0">${esc(s.label)}</span></h2>
     <div>
       <h3>What you see on the issue</h3>
       <div class="comment">
@@ -395,10 +406,10 @@ function render() {
       <ul>${s.trust.map(t => `<li>${esc(t)}</li>`).join("")}</ul>
     </div>
     <div class="nav">
-      <span>Stage ${current + 1} of 7</span>
+      <span>Stage ${current + 1} of ${STEPS.length}</span>
       <span class="nav-buttons">
         <button class="btn" type="button" id="prev" ${current === 0 ? "disabled" : ""}>← ${current > 0 ? STEPS[current - 1].title : "Back"}</button>
-        <button class="btn" type="button" id="next" ${current === 6 ? "disabled" : ""}>${current < 6 ? STEPS[current + 1].title : "Next"} →</button>
+        <button class="btn" type="button" id="next" ${current === STEPS.length - 1 ? "disabled" : ""}>${current < STEPS.length - 1 ? STEPS[current + 1].title : "Next"} →</button>
       </span>
     </div>`;
   detail.querySelector("#prev").addEventListener("click", () => go(current - 1));

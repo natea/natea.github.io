@@ -105,7 +105,7 @@
   .role.agent { --c: var(--agent); }
 
   /* steps */
-  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; counter-reset: s; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; counter-reset: s; }
   .steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; display: grid; gap: 8px; align-content: start; }
   .steps li::before { content: counter(s, decimal-leading-zero); font: 600 0.75rem/1 var(--mono); color: var(--muted); }
   .steps b { font: 700 1.1rem/1.15 var(--display); display: flex; align-items: center; gap: 8px; }
@@ -170,10 +170,10 @@
   <div class="wrap hero">
     <div>
       <h1>Ask for a feature in plain words. Get back a <em>reviewed, tested</em> change.</h1>
-      <p class="lede">intentable turns a GitHub issue into a pull request. The people who know what the site needs write the issue and answer questions in comments, so <strong>they never open a terminal</strong>. An agent does the writing, design and code, and checkpoints, some automatic and some human, stop anything unchecked from reaching the site.</p>
+      <p class="lede">intentable turns a GitHub issue into a pull request. The people who know what the site needs write the issue and answer questions in comments, so <strong>they never open a terminal</strong>. An agent does the writing, design and code, every change gets <strong>its own preview of the site</strong> to try before it's merged, and checkpoints, some automatic and some human, stop anything unchecked from reaching the site.</p>
       <div class="ctas">
         <a class="cta primary" href="diagrams/how-intentable-works.html">See how one issue moves <span aria-hidden="true">→</span></a>
-        <a class="cta secondary" href="#how">The seven steps</a>
+        <a class="cta secondary" href="#how">The eight steps</a>
       </div>
     </div>
 
@@ -194,6 +194,10 @@
         <div class="post-head"><span class="avatar owner" aria-hidden="true">O</span><b>Owner</b> approved the proposal</div>
         <p><code>/approve</code></p>
       </li>
+      <li class="post">
+        <div class="post-head"><span class="avatar agent" aria-hidden="true">A</span><b>Agent</b><span class="label">state:preview-ready</span></div>
+        <p>The preview of this change is ready to check before it's merged. Where to look: <u>the player on a band's page</u></p>
+      </li>
       <li class="post check">
         <div class="post-head"><span class="avatar agent" aria-hidden="true">A</span><b>Agent</b> opened a pull request</div>
         <div class="merged"><span class="pill">Merged</span> Add the Bandcamp player to band pages</div>
@@ -210,17 +214,17 @@
         <article class="role person">
           <h3>The person who asks</h3>
           <p class="does">Knows what the site needs; doesn't need to know how it's built.</p>
-          <ul><li>Opens an issue in plain words</li><li>Answers the agent's questions</li><li>Gives feedback on sketches and picks one</li></ul>
+          <ul><li>Opens an issue in plain words</li><li>Answers the agent's questions</li><li>Gives feedback on sketches and picks one</li><li>Tries the change on its preview</li></ul>
         </article>
         <article class="role owner">
           <h3>The owner</h3>
           <p class="does">Holds the two gates that matter most.</p>
-          <ul><li>Approves the proposal before anything is built</li><li>Reviews and merges the finished code</li></ul>
+          <ul><li>Approves the proposal before anything is built</li><li>Checks the preview, then reviews and merges the code</li></ul>
         </article>
         <article class="role agent">
           <h3>The agent</h3>
           <p class="does">Does the writing, design and code.</p>
-          <ul><li>Triages, and asks what's unclear</li><li>Writes the proposal, with reviews and sketches</li><li>Builds it, tested, up to the pull request</li></ul>
+          <ul><li>Triages, and asks what's unclear</li><li>Writes the proposal, with reviews and sketches</li><li>Builds it, tested, up to the pull request</li><li>Puts up a preview and links the pages to check</li></ul>
         </article>
       </div>
     </div>
@@ -229,7 +233,7 @@
   <section id="how" aria-labelledby="how-title">
     <div class="wrap">
       <p class="eyebrow">How it works</p>
-      <h2 id="how-title">Seven steps, the same for every request</h2>
+      <h2 id="how-title">Eight steps, the same for every request</h2>
       <p class="intro">The issue's label shows everyone where it stands, and it's always assigned to whoever holds it: the person who asked while a question waits on them, the owner otherwise.</p>
       <ol class="steps">
         <li><b><span class="mk auto" aria-hidden="true"></span>Ask</b><span>Someone on the intake list opens an issue.</span></li>
@@ -238,7 +242,8 @@
         <li><b><span class="mk human" aria-hidden="true"></span>Shape</b><span>Feedback starts a revision; a sketch's letter picks it.</span></li>
         <li><b><span class="mk human" aria-hidden="true"></span>Approve</b><span>The owner comments <code>/approve</code>.</span></li>
         <li><b><span class="mk auto" aria-hidden="true"></span>Build</b><span>Built in a fresh sandbox, tests green at every step, then a final check.</span></li>
-        <li><b><span class="mk human" aria-hidden="true"></span>Ship</b><span>The owner reviews the pull request and merges.</span></li>
+        <li><b>Preview</b><span>Each pull request gets its own copy of the site, on last night's data. The link lands on the issue.</span></li>
+        <li><b><span class="mk human" aria-hidden="true"></span>Ship</b><span>The owner checks the preview and merges. The issue closes once the change is live.</span></li>
       </ol>
       <p class="key"><span><span class="mk human" aria-hidden="true"></span>A person decides</span><span><span class="mk auto" aria-hidden="true"></span>An automatic check that can refuse the work</span></p>
       <div class="diagram-link">
@@ -267,7 +272,7 @@
         <article class="promise">
           <h3>Quality</h3>
           <p class="tag">More than one pair of eyes, every time.</p>
-          <ul><li>Three independent reviewers check every proposal.</li><li>The person who asked picks the design before any code is written.</li><li>The owner approves both the plan and the finished code.</li></ul>
+          <ul><li>Three independent reviewers check every proposal.</li><li>The person who asked picks the design before any code is written.</li><li>The owner approves both the plan and the finished code.</li><li>Every change can be tried on a preview, with real listings, before it's merged.</li></ul>
         </article>
       </div>
     </div>
@@ -284,6 +289,7 @@
         <div><dt>OpenSpec</dt><dd>Proposals, testable requirements and task lists, kept beside the code as the site's living specification.</dd></div>
         <div><dt>Fabro</dt><dd>Runs each workflow (triage, clarify, propose, build) as a graph of steps, and keeps a record of every run.</dd></div>
         <div><dt>Daytona sandboxes</dt><dd>A fresh, isolated machine for every run, so one run can't leave a mess for the next.</dd></div>
+        <div><dt>Preview environments</dt><dd>Each pull request runs on Cloud Run, on its own Neon branch of a nightly copy of the live data with people's details removed. It sends no email, and it's gone once the change merges.</dd></div>
         <div><dt>Claude Code</dt><dd>The agent inside each step, doing the reading, writing, design and code.</dd></div>
       </dl>
     </div>
@@ -296,11 +302,11 @@
       <div class="status">
         <div class="now">
           <h3>Working today</h3>
-          <ul><li>Requests, triage and clarifying questions</li><li>Proposals with three reviewers, and sketches</li><li>Feedback, picks and revisions, earlier rounds kept</li><li>The owner's approval, with a sub-issue per group of tasks</li><li>Builds up to the pull request</li></ul>
+          <ul><li>Requests, triage and clarifying questions</li><li>Proposals with three reviewers, and sketches</li><li>Feedback, picks and revisions, earlier rounds kept</li><li>The owner's approval, with a sub-issue per group of tasks</li><li>Builds up to the pull request</li><li>A preview of every pull request, linked on the issue with the pages to check</li><li>Each issue followed to merged and deployed, on a board</li></ul>
         </div>
         <div class="next">
           <h3>Coming next</h3>
-          <ul><li>A preview of the changed site, with a "looks right?" check for whoever asked</li><li>Merging and deploying through the same loop</li><li>A dashboard of every request</li><li>The agent posting under its own identity</li></ul>
+          <ul><li>Other issue trackers besides GitHub</li><li>A dashboard of every request</li><li>The agent posting under its own identity</li></ul>
         </div>
       </div>
     </div>
